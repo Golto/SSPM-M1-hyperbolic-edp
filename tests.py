@@ -63,6 +63,11 @@ initial_step10_0 = psl.Function.changingStep(1, 0, 0)
 initial_sawTooth01 = psl.Function.sawTooth(0, 1)
 initial_triangle012 = psl.Function.triangle(0, 1, 2)
 
+def custom_func(x):
+    return np.exp( - x * x) * np.sin(x * np.pi)
+
+initial_custom = psl.Function(custom_func, "wavelet")
+
 # ================================================================================================================
 #   functions (exact)
 # ================================================================================================================
@@ -85,6 +90,7 @@ def getExactSolution(initial, flux):
 
 # debug
 exact_ind23_identity = getExactSolution(initial_ind23, flux_identity)
+exact_custom_identity = getExactSolution(initial_custom, flux_identity)
 
 # linear, f(u) = u
 exact_ind01_identity = getExactSolution(initial_ind01, flux_identity)
@@ -108,6 +114,12 @@ he_debug = psl.HyperbolicEquation(
     flux = flux_identity,
     initial = initial_ind23,
 ).setExact(exact_ind23_identity)
+
+he_debug2 = psl.HyperbolicEquation(
+    bounds = bounds_medium,
+    flux = flux_identity,
+    initial = initial_custom,
+).setExact(exact_custom_identity)
 
 # linear: scalar = 1 --------------------------------------------------
 he_linear_ind01 = psl.HyperbolicEquation(
@@ -159,6 +171,33 @@ he_linear5_2_triangle012 = psl.HyperbolicEquation(
     initial = initial_triangle012,
 ).setExact(exact_triangle012_fiveHalfIdentity)
 
+# non-linear: quadratic --------------------------------------------------
+
+he_quadratic_ind01 = psl.HyperbolicEquation(
+    bounds = bounds_medium,
+    flux = flux_square_half,
+    initial = initial_ind01,
+)
+
+he_quadratic_step10_0 = psl.HyperbolicEquation(
+    bounds = bounds_medium,
+    flux = flux_square_half,
+    initial = initial_step10_0,
+)
+
+he_quadratic_sawTooth01 = psl.HyperbolicEquation(
+    bounds = bounds_medium,
+    flux = flux_square_half,
+    initial = initial_sawTooth01,
+)
+
+he_quadratic_triangle012 = psl.HyperbolicEquation(
+    bounds = bounds_medium,
+    flux = flux_square_half,
+    initial = initial_triangle012,
+)
+
+
 # ================================================================================================================
 #   exports
 # ================================================================================================================
@@ -166,6 +205,7 @@ he_linear5_2_triangle012 = psl.HyperbolicEquation(
 TEST_CASES = {
     # debug
     "debug" : he_debug,
+    "debug2" : he_debug2,
     # linear: 1
     "linear_ind01" : he_linear_ind01,
     "linear_step10_0" : he_linear_step10_0,
@@ -176,4 +216,9 @@ TEST_CASES = {
     "linear5_2_step10_0" : he_linear5_2_step10_0,
     "linear5_2_sawTooth01" : he_linear5_2_sawTooth01,
     "linear5_2_triangle012" : he_linear5_2_triangle012,
+    #
+    "quadratic_ind01" : he_quadratic_ind01,
+    "quadratic_step10_0" : he_quadratic_step10_0,
+    "quadratic_sawTooth01" : he_quadratic_sawTooth01,
+    "quadratic_triangle012" : he_quadratic_triangle012,
 }
