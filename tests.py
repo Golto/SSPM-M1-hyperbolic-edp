@@ -6,6 +6,75 @@ Date : 31/03/2024 [d/m/y]
 
 """
 
+class RiemannProblem:
+	"""
+	# https://fr.wikipedia.org/wiki/Probl%C3%A8me_de_Riemann
+	# https://en.wikipedia.org/wiki/Riemann_solver
+
+	Problème de Riemann : 
+	"""
+	def __init__(self, ul, ur, x0 = 0):
+		self.ul = ul 
+		self.ur = ur 
+		self.x0 = x0
+		self.sigma = None
+
+	def getShockSpeed(self, f):
+		"""
+		Relations de Hunkine-Hugoniot
+		"""
+		sigma = (f(self.ur) - f(self.ul)) / (self.ur - self.ul)
+		return sigma
+
+	def initSigma(self, f):
+		"""
+		Initialisation de la valeur de Sigma
+		"""
+		self.sigma = self.getShockSpeed(f)
+		return self
+
+	def indicator(self, x):
+		"""
+		Condition initiale
+		"""
+		return (x < self.x0) * self.ul + (x > self.x0) * self.ur
+
+	def isShock(self, fprime):
+		"""
+		Détection de chocs
+		"""
+		return (self.ul > self.ur) and ( fprime(self.ul) > self.sigma ) and ( fprime(self.ur) < self.sigma )
+
+	def shockCurve(self, t, t0):
+		"""
+		Courbe (ligne) du choc
+		"""
+		return self.sigma * (t - t0) + self.x0
+
+	def solve(self, f, fprime):
+		"""
+		Calcul de la solution u(t,x)
+		Retourne la solution u
+		"""
+		isShock = self.isShock(fprime)
+
+
+		# choc
+		if isShock:
+			def u(t, x):
+				ratio = (x - self.x0) / t
+				return (ratio < self.sigma) * self.ul + (ratio > self.sigma) * self.ur
+			return u
+
+		# détente
+		def u(t, x):
+			ratio = (x - self.x0) / t
+			return (ratio < fprime(self.ul)) * self.ul + 0 + (ratio > fprime(self.ur)) * self.ur
+		return u
+
+	def __str__(self):
+		return f"RiemannProblem(\n\t(ul, ur) = ({self.ul}, {self.ur}),\n\tx0 = {self.x0},\n\tsigma = {self.sigma}\n)"
+	
 # ================================================================================================================
 #   imports
 # ================================================================================================================
@@ -50,7 +119,7 @@ def square_half(x):
     return x * x * 0.5
 
 # f(u) = u^2/2
-flux_square_half = psl.Function(func = square_half, name = "square_half", data = { "prime" : flux_identity, "isLinear" : False })
+flux_square_half = psl.Function(func = square_half, name = "square_half", data = { "prime" : flux_identity, "isLinear" : False, "isQuadratic" : True })
 
 # ================================================================================================================
 #   functions (initial)
@@ -59,7 +128,12 @@ flux_square_half = psl.Function(func = square_half, name = "square_half", data =
 initial_ind23 = psl.Function.indicator(psl.Interval(2, 3))
 
 initial_ind01 = psl.Function.indicator(psl.Interval(0, 1))
-initial_step10_0 = psl.Function.changingStep(1, 0, 0)
+initial_step10_0 = psl.Function.changingStep(1, 0, 0, data = {
+	"canBeRiemannProblem": True,
+	"ul": 1,
+	"ur": 0,
+	"x0": 0
+})
 initial_sawTooth01 = psl.Function.sawTooth(0, 1)
 initial_triangle012 = psl.Function.triangle(0, 1, 2)
 
@@ -76,7 +150,7 @@ initial_custom = psl.Function(custom_func, "wavelet")
 
 def getExactSolution(initial, flux):
 
-    if flux.data["isLinear"]:
+    if flux.data.get("isLinear"):
 
         def exactSolution(t, x):
             scalar = flux(1)
@@ -84,7 +158,20 @@ def getExactSolution(initial, flux):
         
         return psl.Function(func = exactSolution, name = f"exact_{initial.name}_{flux.name}")
     
-    #if initial.data
+    print(initial.data, flux.data)
+    if initial.data.get("canBeRiemannProblem") and flux.data.get("isQuadratic"):
+		
+        
+              
+        ul = initial.data.get("ul")
+        ur = initial.data.get("ur")
+        x0 = initial.data.get("x0")
+
+        rp = RiemannProblem(ul, ur, x0).initSigma(flux)
+        exactSolution = rp.solve(flux, flux.data.get("prime"))
+		
+        return psl.Function(func = exactSolution, name = f"exact_{initial.name}_{flux.name}")
+		
 
     return None
 
@@ -103,6 +190,9 @@ exact_ind01_fiveHalfIdentity = getExactSolution(initial_ind01, flux_fiveHalfIden
 exact_step10_0_fiveHalfIdentity = getExactSolution(initial_step10_0, flux_fiveHalfIdentity)
 exact_sawTooth01_fiveHalfIdentity = getExactSolution(initial_sawTooth01, flux_fiveHalfIdentity)
 exact_triangle012_fiveHalfIdentity = getExactSolution(initial_triangle012, flux_fiveHalfIdentity)
+
+# quadratic, f(u) = u^2/2
+exact_step10_0_square_half = getExactSolution(initial_step10_0, flux_square_half)
 
 # ================================================================================================================
 #   equations
@@ -183,7 +273,7 @@ he_quadratic_step10_0 = psl.HyperbolicEquation(
     bounds = bounds_medium,
     flux = flux_square_half,
     initial = initial_step10_0,
-)
+).setExact(exact_step10_0_square_half)
 
 he_quadratic_sawTooth01 = psl.HyperbolicEquation(
     bounds = bounds_medium,

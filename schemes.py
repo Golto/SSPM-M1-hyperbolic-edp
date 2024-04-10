@@ -53,7 +53,7 @@ def LF_FV(u, dt, dx, flux):
 # Finite Differences
 def LW_FD(u, dt, dx, flux):
 
-	fprime = flux.data["prime"]
+	fprime = flux.data.get("prime")
 
 	dt_dx = dt / dx
 	dt_dx2 = dt_dx * dt_dx
@@ -65,7 +65,7 @@ def LW_FD(u, dt, dx, flux):
 # Finite Volumes
 def LW_FV(u, dt, dx, flux):
 
-	fprime = flux.data["prime"]
+	fprime = flux.data.get("prime")
 
 	dt_dx = dt / dx
 
